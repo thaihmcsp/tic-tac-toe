@@ -1,126 +1,96 @@
 import React from 'react'
 import './class.css'
+import Board from './classBoard'
 
-// square -----------------------------------------------------
-
-  function Square(props) {
-    return (
-      <button 
-      className="square" 
-      onClick={()=>{props.onClick()
-      }}
-      >
-        {props.value}
-      </button>
-    );
-    
-  }
-
-// Board -------------------------------------------------------------
-
-  class Board extends React.Component {
-    
-    handleClick = (i)=>{
-        const squares = this.props.squares.slice()
-        if (calculateWinner(squares)|| squares[i]) {
-          return;
-        }
-        squares[i]= this.props.isNext === true ? 'O' : 'X'
-        this.props.update(squares)
-    }
-
-    renderSquare(i) {
-      return (
-        <Square 
-            value = {this.props.squares[i]} 
-            onClick ={()=>{this.handleClick(i)}}
-        />
-      )
-    }
-
-    sendStatus = ()=>{
-      let winner = calculateWinner(this.props.squares)
-      if(winner){
-        return 'Winner: player '+winner
-      }else{
-        return 'Next player: ' + (this.props.isNext === true ? 'O':'X')
-      }
-    }
-
-    render() {
-      const status = this.sendStatus()
-      return (
-        <div>
-          <div className="status">{status}</div>
-          <div className="board-row">
-            {this.renderSquare(0)}{this.renderSquare(1)}{this.renderSquare(2)}
-          </div>
-          <div className="board-row">
-            {this.renderSquare(3)}{this.renderSquare(4)}{this.renderSquare(5)}
-          </div>
-          <div className="board-row">
-            {this.renderSquare(6)}{this.renderSquare(7)}{this.renderSquare(8)}
-          </div>
-        </div>
-      );
-    }
-  }
-  
-
-// Game ---------------------------------------------------------
   class Game extends React.Component {
     constructor(props){
       super(props)
       this.state={
-          squares:Array(9).fill(null),
-          isNext : true,
-          winner:''
+        squares: Array(9).fill(null),
+        isNext : true,
+        over:false,
+        undo:1,
+        history: [{
+          squares: Array(9).fill(null),
+        }]
       }
     }
 
     update= async(newSquares)=>{
+      let newHistory = this.state.history.slice()
+      let undo = this.state.undo
+      if (undo === 1 ){
+        newHistory.push(newSquares)
+      }
+      if(undo > 1){
+        newHistory.splice(newHistory.length - undo+1,undo-1,newSquares)
+      }
+
       this.setState({isNext: !this.state.isNext, 
-               squares:newSquares})
-      // let newChess
-      // var storeArr = await newSquares.map((element,index)=>{
-      //   let chess = this.state.squares[index]
-      //   if((element !== chess)&&(element !== null) ){
-      //     newChess = element
-      //   }
-
-      //   if((element !== chess)&&(element !== null)&&(chess !== null)){
-      //     newChess =  chess
-      //   }
-
-      //   if(element === chess){
-      //     newChess = chess
-      //   }
-
-      //   return newChess
-      // })
-
-      // for(let i =0; i<this.state.squares.length; i++ ){
-      //   if(storeArr[i] !== this.state.squares[i]){
-      //     await this.setState({isNext: !this.state.isNext, 
-      //       squares:storeArr})
-      //   }
-      // }
-
+               squares:newSquares, 
+               undo:1,
+               history:newHistory})
     }
 
+    undo = (x) =>{
+      let turn = this.state.undo + x
+      let history = this.state.history.slice()
+      let prevTurn = history[history.length - turn]
+      if((turn > 0) && (turn <= history.length) ){
+        this.setState({undo: turn,squares:prevTurn})
+      }
+    }
+
+    reset = ()=>{
+      this.setState({
+        squares: Array(9).fill(null),
+        isNext : true,
+        over:false,
+        undo:1,
+        history: [{
+          squares: Array(9).fill(null),
+        }]})
+    }
+
+    sendStatus = ()=>{
+      let history = this.state.history
+      let current = history[history.length - 1]
+      let winner = calculateWinner(current)
+      if(history.length === 10){
+        return 'Game Over'
+      }
+      if(winner){
+        return 'Winner: player '+winner
+      }else{
+        return 'Next player: ' + (this.state.isNext === true ? 'O':'X')
+      }
+    }
+
+
     render() {
+      let status =this.sendStatus()
+
       return (
         <div className="game">
-          <div className="game-board">
-            <Board isNext={this.state.isNext} 
-            winnerCalculate = {()=>{this.calculateWinner()}}
-            squares={this.state.squares} 
-            update={(newSquares)=>{this.update(newSquares)}}/>
-          </div>
           <div className="game-info">
-            <div>{/* status */}</div>
+            <div>
+              <button onClick={()=>{this.reset()}}>reset </button>
+            </div>
+            <div>{status}</div>
+            <div>
+              <button onClick={()=>{this.undo(1)}}>prev</button>
+              <button onClick={()=>{this.undo(-1)}}>next</button>
+            </div>
             <ol>{/* TODO */}</ol>
           </div>
+          <div className="game-board">
+            <Board isNext={this.state.isNext} 
+            squares={this.state.squares} 
+            history = {this.state.history}
+            undo = {this.state.undo}
+            update={(newSquares)=>{this.update(newSquares)}}/>
+          </div>
+          
         </div>
       );
     }
@@ -147,5 +117,6 @@ import './class.css'
     }
     return null;
   }
+
 
 export default Game
